@@ -58,6 +58,18 @@ else:
 
 max_depth = np.max(data["depth"]) # Adjust based on your scene's scale
 
+if max_depth > 1:
+    # Flatten and sort all unique values
+    sorted_depths = np.sort(np.unique(depth.flatten()))
+    # Find first value less than 1 starting from the max
+    next_valid = sorted_depths[sorted_depths < 1]
+    
+    if len(next_valid) > 0:
+        max_depth = next_valid[-1]
+        print("Closest depth value below 1:", max_depth)
+    else:
+        print("No depth values found below 1.")
+
 # Mask and normalize depth
 depth_masked = np.where(depth > max_depth, np.nan, depth)
 depth_min = np.nanmin(depth_masked)
