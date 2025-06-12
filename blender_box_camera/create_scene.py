@@ -3,6 +3,9 @@ import bpy
 import numpy as np
 import mathutils
 from mathutils import Quaternion
+import os 
+import random
+import torch
 
 obj_path = "/Users/mikaylalahr/Desktop/BlenderProc-main/my_code/textured.obj"
 obj_pos = (0,0,0)
@@ -25,9 +28,9 @@ obj_four_rot = (0,0,0)
 texture_four_path = "/Users/mikaylalahr/Desktop/BlenderProc-main/my_code/scissors/texture_map.png"
 
 # Box Scaling
-Xscale = 0.34/2 #32 #1.3
-Yscale = 0.34/2 #32 #1.5
-Zscale = 0.3/2 #0.5
+Xscale = 0.2/2 #0.4/2 #0.34/2 #32 #1.3
+Yscale = 0.4/2 #0.4/2 #0.34/2 #32 #1.5
+Zscale = 0.3/2 #0.4/2 #0.3/2 #0.5
 box_scale = [Xscale,Yscale,Zscale]
 box_location = [0,0,Zscale]
 scale = (1,1,1) #(3,3,3) # object scale
@@ -203,7 +206,6 @@ def load_obj_texture_four(obj_path,obj_pos,obj_rot,texture_path,scale):
     else:
         obj.data.materials.append(material) 
 
-
 # Lighting
 def setup_lighting():
     light_data = bpy.data.lights.new('light',type='POINT')
@@ -240,6 +242,35 @@ def convert_pybullet_quaternion_to_blender(quat_xyzw):
     q_fixed = rot_fix @ q_pb
     return q_fixed.to_euler('XYZ')
 
+def load_obj_with_texture(obj_path, obj_pos, obj_rot, texture_path, scale):
+    obj = bproc.loader.load_obj(obj_path)
+    obj[0].set_location(obj_pos)
+    obj[0].set_rotation_euler(obj_rot)
+    obj[0].set_scale(scale)
+    
+    material = bpy.data.materials.new(name="TexturedMaterial")
+    material.use_nodes = True
+
+    nodes = material.node_tree.nodes
+    texture_node = nodes.new(type='ShaderNodeTexImage')
+    image = bpy.data.images.load(texture_path)
+    texture_node.image = image
+
+    principled_bsdf = nodes.get("Principled BSDF")
+    material.node_tree.links.new(texture_node.outputs["Color"], principled_bsdf.inputs["Base Color"])
+
+    #if obj[0].get_materials():
+    #    obj[0].get_materials()[0] = material
+    #else:
+    #    obj[0].add_material(material)
+
+    obj = bpy.context.active_object  
+    if obj.data.materials:
+        obj.data.materials[0] = material  # If the object already has a material, replace the first one
+    else:
+        obj.data.materials.append(material) 
+
+
 
 # Initialize BlenderProc
 bproc.init()
@@ -254,6 +285,114 @@ create_box(Xscale,Yscale,Zscale)
 pose_data = np.load("pybullet_poses.npz", allow_pickle=True)
 print("Objects in npz:", list(pose_data.keys()))
 
+# Initialize scene_dict
+scene_dict = {
+    'objnumber': [],
+    'objnames': [],
+    'objposes': [],
+    'cam_poses': [],
+    'lat_lon_radius': [],
+    'min_lat': [], 'max_lat': [], 'step_lat': [],
+    'min_lon': [], 'max_lon': [], 'step_lon': [],
+    'ring_pose_num': [], 'ring_radius': [], 'ring_height': [],
+}
+
+# Sort keys for consistent order (optional)
+for key in sorted(pose_data.keys()):
+    data = pose_data[key].item()
+    objname = f"meshes/{key}/textured.obj"
+    pose = data['location'].tolist() + data['quaternion_xyzw'].tolist()
+
+    scene_dict['objnames'].append(objname)
+    scene_dict['objposes'].append(pose)
+
+# Convert list to torch tensors
+scene_dict['objnumber'] = len(scene_dict['objnames'])
+scene_dict['objposes'] = torch.tensor(scene_dict['objposes'], dtype=torch.float32)
+
+# Load camera poses from txt file
+cam_poses_list = []
+with open("camera_positions.txt", "r") as f:
+    for line in f:
+        parts = line.strip().split()
+        if len(parts) == 6:  # Expecting pos(3) + quat(4)
+            pose = [float(x) for x in parts]
+            cam_poses_list.append(pose)
+
+scene_dict['cam_poses'] = torch.tensor(cam_poses_list, dtype=torch.float32)
+
+lat_lon_list = []
+with open("dome_lat_lon.txt", "r") as f:
+    for line in f:
+        parts = line.strip().split()
+        if len(parts) == 1:  # Expecting pos(3) + quat(4)
+            pose = [float(x) for x in parts]
+            lat_lon_list.append(pose)
+
+if len(lat_lon_list) != 0:
+    scene_dict['lat_lon_radius'] = torch.tensor(lat_lon_list[0], dtype=torch.float32)
+    scene_dict['min_lat'] = torch.tensor(lat_lon_list[1], dtype=torch.float32)
+    scene_dict['max_lat'] = torch.tensor(lat_lon_list[2], dtype=torch.float32)
+    scene_dict['step_lat'] = torch.tensor(lat_lon_list[3], dtype=torch.float32)
+    scene_dict['min_lon'] = torch.tensor(lat_lon_list[4], dtype=torch.float32)
+    scene_dict['max_lon'] = torch.tensor(lat_lon_list[5], dtype=torch.float32)
+    scene_dict['step_lon'] = torch.tensor(lat_lon_list[6], dtype=torch.float32)
+
+ring_list = []
+with open("ring_radius_height.txt", "r") as f:
+    for line in f:
+        parts = line.strip().split()
+        if len(parts) == 1:  # Expecting pos(3) + quat(4)
+            pose = [float(x) for x in parts]
+            ring_list.append(pose)
+
+if len(ring_list) != 0:
+    scene_dict['ring_pose_num'] = torch.tensor(ring_list[0], dtype=torch.float32)
+    scene_dict['ring_radius'] = torch.tensor(ring_list[1], dtype=torch.float32)
+    scene_dict['ring_height'] = torch.tensor(ring_list[2], dtype=torch.float32)
+
+# Save to .pt
+torch.save(scene_dict, "scene.pt")
+print("Saved scene.pt")
+
+# Load the .pt file
+data = torch.load('scene.pt')
+# Print the content
+print(data)
+
+
+MESHES_DIR = "meshes"
+SCALE = (1, 1, 1)
+
+for obj_name in pose_data:
+    obj_info = pose_data[obj_name].item()  # unpack np.object type
+    location = convert_pybullet_position_to_blender(obj_info["location"])
+    rotation = convert_pybullet_quaternion_to_blender(obj_info["quaternion_xyzw"])
+
+    # Assume subfolder name matches the object name
+    obj_dir = os.path.join("/Users/mikaylalahr/Desktop/BlenderProc-main/my_code_pybullet_blender/my_semantic_segmentation/meshes", obj_name) #MESHES_DIR, obj_name)
+    obj_path = os.path.join(obj_dir, "textured.obj")
+
+    texture_path = None
+    for ext in [".jpg", ".jpeg", ".png"]:
+        potential_texture = os.path.join(obj_dir, f"texture_map{ext}")
+        if os.path.exists(potential_texture):
+            texture_path = potential_texture
+            break
+    print(f"Using texture path: {texture_path}")
+
+    if not os.path.exists(obj_path) or not texture_path:
+        print(f"Skipping {obj_name}: Missing mesh or texture")
+        continue
+
+    pose = pose_data[obj_name].item()
+    location = (pose["location"][0], pose["location"][1], pose["location"][2])
+    q = pose["quaternion_xyzw"]
+    rotation = quat_to_euler(q)
+    load_obj_with_texture(obj_path, location, rotation, texture_path, SCALE)
+
+
+'''
 # Load saved poses
 pose_data = np.load("pybullet_poses.npz", allow_pickle=True)
 print("Objects in file:", list(pose_data.keys()))
@@ -306,7 +445,11 @@ load_obj_texture_four(obj_four_path,obj_four_pos,obj_four_rot,texture_four_path,
 
 #setup_lighting()
 
+'''
+
 # Save the entire scene as a Blender .blend file
 #bproc.utility.save_blend("my_scene.blend")
 bpy.ops.wm.save_as_mainfile(filepath="my_scene.blend")
 print("Saved my_scene.blend with all objects loaded.")
+
+

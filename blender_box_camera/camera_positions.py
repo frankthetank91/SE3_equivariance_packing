@@ -1,9 +1,15 @@
 import numpy as np
 
 def random_camera_position():
+    '''
     x = np.random.uniform(-0.25, 0.25)
     y = np.random.uniform(-0.25, 0.25)
     z = np.random.uniform(0.3, 0.5)
+    '''
+    x = np.random.uniform(-0.25, 0.25)
+    y = np.random.uniform(-0.25, 0.25)
+    z = np.random.uniform(0.4, 0.6)
+    
     return np.array([x, y, z])
 
 '''
@@ -52,7 +58,7 @@ def look_at_rotation_blender(camera_pos, target):
 target = np.array([0.0, 0.0, 0.15])
 poses = []
 
-cam_pos = np.array([0.0, 0.0, 0.5])
+cam_pos = np.array([0.0, 0.0, 0.6]) #0.5])
 cam_rot = np.array([0.0, 0.0, 0.0])
 pose_line = list(cam_pos) + list(cam_rot)
 poses.append(pose_line)
@@ -70,3 +76,17 @@ with open("camera_positions.txt", "w") as f:
         f.write(line + "\n")
 
 print("Saved 10 camera poses to camera_positions.txt")
+
+# Save to file
+output_file2 = "dome_lat_lon.txt"
+with open(output_file2, "w") as f:
+    f.write("")
+
+print(f"Saved no lat and lon data to {output_file2}")
+
+# Save to file
+output_file3 = "ring_radius_height.txt"
+with open(output_file3, "w") as f:
+    f.write("")
+
+print(f"Saved no ring radius and height to {output_file3}")

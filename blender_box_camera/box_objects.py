@@ -185,7 +185,7 @@ def create_walls():
 
 # Setup Box and Load Objects
 #lbb_box = [0.1, -0.15, 0]  # Left-Bottom-Back corner
-dimensions = [0.34,0.34,0.3] #[0.44,0.6,0.2] #[0.22, 0.3, 0.1]  # Dimensions [L, W, H]
+dimensions = [0.2,0.4,0.3] #[0.4,0.4,0.4] #[0.34,0.34,0.3] #[0.44,0.6,0.2] #[0.22, 0.3, 0.1]  # Dimensions [L, W, H]
 lbb_box = [-dimensions[0]/2,-dimensions[1]/2,0]
 object_manager = ObjectManager(lbb_box, dimensions)
 object_manager.setup_box()
@@ -205,7 +205,7 @@ for i in range(5):  # number of objects
     loaded_objects.append(obj_id)
 '''
 
-
+'''
 # Load random URDF objects
 YCB_PATH = "/path/to/urdf-ycb/ycb_models"
 object_paths = [
@@ -228,6 +228,52 @@ for i in range(len(object_paths)):
     )
     object_ids.append(obj_id)
     object_names.append(f"obj_{i}")
+'''
+
+
+
+YCB_PATH = "meshes"
+
+# Automatically collect available YCB URDF model paths
+def get_urdf_model_paths(ycb_dir):
+    urdf_paths = []
+    for item in os.listdir(ycb_dir):
+        model_path = os.path.join(ycb_dir, item, "model.urdf")
+        if os.path.exists(model_path):
+            urdf_paths.append(model_path)
+    return urdf_paths
+
+# Pick N random models
+def load_random_urdf_objects(n, urdf_paths):
+    object_ids = []
+    object_names = []
+
+    selected_paths = random.sample(
+        random.sample(urdf_paths, len(urdf_paths)),
+        min(n, len(urdf_paths))
+        #urdf_paths, min(n, len(urdf_paths)))
+    )
+
+    for i, urdf_path in enumerate(selected_paths):
+        pos = [
+            random.uniform(box_center[0] - dimensions[0]/2, box_center[0] + dimensions[0]/2),
+            random.uniform(box_center[1] - dimensions[1]/2, box_center[1] + dimensions[1]/2),
+            random.uniform(dimensions[2], dimensions[2] + 0.3)
+        ]
+        orn = p.getQuaternionFromEuler([random.uniform(0, 3.14) for _ in range(3)])
+        obj_id = p.loadURDF(urdf_path, basePosition=pos, baseOrientation=orn)
+
+        object_ids.append(obj_id)
+        #object_names.append(f"obj_{i}")
+        folder_name = os.path.basename(os.path.dirname(urdf_path))
+        object_names.append(folder_name)
+
+    return object_ids, object_names
+
+# Main execution
+urdf_paths = get_urdf_model_paths(YCB_PATH)
+object_ids, object_names = load_random_urdf_objects(n=2, urdf_paths=urdf_paths)
+
 
 # Step simulation
 for _ in range(500):  
@@ -239,6 +285,8 @@ poses = {}
 for name, obj_id in zip(object_names, object_ids):
     pos, orn = p.getBasePositionAndOrientation(obj_id)
     poses[name] = {
+        "name": np.array(name),
+        "obj_id": np.array(obj_id),
         "location": np.array(pos),
         "quaternion_xyzw": np.array(orn) #np.array([orn[1], orn[2], orn[3], orn[0]])  # BlenderProc wants xyzw
     }
