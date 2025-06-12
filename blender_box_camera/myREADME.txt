@@ -9,13 +9,9 @@ This code runs the Pybullet simulation where the objects fall into the box.
 The code chooses N random objects from a specified folder.
 The file "pybullet_poses.npz" should be created after running the code.
 
-2. Run "blenderproc run create_scene.py" in terminal
-This code loads the object files into Blender and saves the scene.
-The file "my_scene.blend" should be created after running the code.
-
-3. Run "python camera_positions.py" in terminal
+2. Run "python camera_positions.py" in terminal
 This code generates 10 random camera positions and one camera position above the center of the box. Orientation towards (0,0,0.15).
-The files "camera_positions.txt", "dome_lat_lon.txt", and "ring_radius_height.txt" should be created after running the code. The files "dome_lat_lon.txt", and "ring_radius_height.txt" should be empty.
+The files "camera_positions.txt", "dome_lat_lon.txt", and "ring_radius_height.txt" should be created after running the code. The files "dome_lat_lon.txt" and "ring_radius_height.txt" should be empty.
 
 OR
 
@@ -28,6 +24,10 @@ OR
 Run "python ring_camera_positions.py" in terminal
 This code generates N camera positions around a circle with a specified radius and height and one camera position above the center of the box. Orientation towards (0,0,0.15).
 The files "camera_positions.txt", "dome_lat_lon.txt", and "ring_radius_height.txt" should be created after running the code. The file "dome_lat_lon.txt" should be empty.
+
+2. Run "blenderproc run create_scene.py" in terminal
+This code loads the object files into Blender and saves the scene.
+The files "my_scene.blend" and "scene.pt" should be created after running the code.
 
 4. Run "blenderproc run my_main.py camera_positions.txt my_scene.blend output" in terminal
 This code renders the RGB, Depth, and Segmentation Masks and saves .hdf5 files.
